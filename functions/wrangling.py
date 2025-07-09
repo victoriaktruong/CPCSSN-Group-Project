@@ -175,7 +175,7 @@ def classify_lab_timing(lab_df, diag_df, diagnosis_codes, lab_date_col='Performe
     return summary, bd_first_clean
 
 
-def other_dx_same_day(diag_df, bd_first_clean, diag_date_col='DateCreated'):
+def other_dx_same_day(diag_df, bd_first_clean, bd_codes, diag_date_col='DateCreated'):
     """
     Count patients who had a non-BD diagnosis recorded on the same day as their first BD diagnosis
     
