@@ -94,7 +94,7 @@ def summarize_dataframes(datasets):
     - datasets: dictionary of DataFrames with dataset names as keys
 
     Returns:
-    - None (prints summaries)
+    - summary of DataFrame structure and content
     """
     for name, df in datasets.items():
         print(f"{name} summary")
@@ -138,7 +138,7 @@ def plot_lab_histograms(df, lab_cols, bins=10, figsize=(10, 6)):
     - figsize: tuple of figure size (width, height)
 
     Returns:
-    - None (displays plots)
+    - displays plots
     """
     plt.figure(figsize=figsize)  
     for i, col in enumerate(lab_cols, 1): 
@@ -200,7 +200,7 @@ def plot_boxplots(df, lab_cols, figsize=(10, 8)):
     - figsize: tuple of figure size (width, height)
 
     Returns:
-    - None (displays plots)
+    - displays plots
     """
     plt.figure(figsize=figsize)
     for i, col in enumerate(lab_cols, 1):
@@ -224,7 +224,7 @@ def plot_scatter_pairs(df, col_pairs, figsize=(10, 4)):
     - figsize: tuple of figure size (width, height)
 
     Returns:
-    - None (displays plots)
+    - displays plots
     """
     plt.figure(figsize=figsize)
     for i, (x_col, y_col, title) in enumerate(col_pairs, 1):
