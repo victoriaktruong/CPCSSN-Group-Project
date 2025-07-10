@@ -131,47 +131,77 @@ def extract_labs_relative_to_diagnosis(
     return merged[merged['Lab_Timing'] == 'After']
 
 
-def classify_lab_timing(lab_df, diag_df, diagnosis_codes, lab_date_col='PerformedDate', diag_date_col='DateCreated'):
+def classify_lab_timing(
+    lab_df,
+    diag_df,
+    diagnosis_codes,
+    relevant_markers=None,
+    lab_date_col='PerformedDate',
+    diag_date_col='DateCreated',
+    lab_name_col='Name_calc',
+    diag_code_col='DiagnosisCode_calc'
+):
     """
-    Classify patients based on whether lab tests occurred before, after, or both before and after the BD diagnosis
-    
+    Classify patients based on whether lab tests occurred before, after,
+    or both before and after their first BD diagnosis.
+
     Parameters:
-    - lab_df: DataFrame of lab results
-    - diag_df: DataFrame of diagnoses
-    - diagnosis_codes: list of BD diagnosis codes
-    - lab_date_col: name of the column with lab dates
-    - diag_date_col: name of the column with diagnosis dates
-    
+    - lab_df: DataFrame containing lab records
+    - diag_df: DataFrame containing diagnosis records
+    - diagnosis_codes: list of BD ICD codes to filter on
+    - relevant_markers: optional list of lab test names to include
+    - lab_date_col: column name for lab test date
+    - diag_date_col: column name for diagnosis date
+    - lab_name_col: column name for lab test name
+    - diag_code_col: column name for diagnosis code
+
     Returns:
-    - summary: DataFrame showing each patient's lab data timing 
-    - bd_first_clean: DataFrame of patients whose first diagnosis was a BD diagnosis
+    - summary: DataFrame with one row per patient, showing lab timing classification
+    - bd_first_clean: DataFrame of patients whose first-ever diagnosis was BD
     """
+
+    # Get first-ever diagnosis per patient
     diag_df = diag_df.copy()
     diag_df[diag_date_col] = pd.to_datetime(diag_df[diag_date_col], errors='coerce')
     first_any_dx = diag_df.sort_values(['Patient_ID', diag_date_col]).groupby('Patient_ID').first().reset_index()
     first_any_dx = first_any_dx.rename(columns={diag_date_col: 'First_Diagnosis_Date',
-                                                 'DiagnosisCode_calc': 'first_any_dx_code'})
+                                                diag_code_col: 'first_any_dx_code'})
+
+    # Keep only patients whose first diagnosis is BD
     bd_first_clean = first_any_dx[first_any_dx['first_any_dx_code'].isin(diagnosis_codes)].copy()
 
+    # Filter labs by relevant markers if provided
     lab_df = lab_df.copy()
+    if relevant_markers is not None:
+        lab_df = lab_df[lab_df[lab_name_col].isin(relevant_markers)]
+
+    # Parse lab dates and merge with diagnosis
     lab_df[lab_date_col] = pd.to_datetime(lab_df[lab_date_col], errors='coerce')
     merged = lab_df.merge(bd_first_clean[['Patient_ID', 'First_Diagnosis_Date']], on='Patient_ID', how='inner')
-    merged['Lab_Timing'] = 'After'
-    merged.loc[merged[lab_date_col] < merged['First_Diagnosis_Date'], 'Lab_Timing'] = 'Before'
 
-    summary = merged.groupby('Patient_ID')['Lab_Timing'].unique().reset_index()
+    # Label each lab result by timing
+    merged['Lab_Timing'] = merged.apply(
+        lambda row: 'Before' if row[lab_date_col] < row['First_Diagnosis_Date']
+        else 'After' if row[lab_date_col] > row['First_Diagnosis_Date']
+        else 'Same day',
+        axis=1
+    )
 
-    def classify(timings):
-        if "Before" in timings and "After" in timings:
-            return "Both before and after"
-        elif "Before" in timings:
-            return "Only before"
-        elif "After" in timings:
-            return "Only after"
+    # Classify lab timing per patient
+    def classify_patient(timings):
+        timings = set(timings)
+        if 'Before' in timings and 'After' in timings:
+            return 'Both'
+        elif 'After' in timings:
+            return 'Only after'
+        elif 'Before' in timings:
+            return 'Only before'
         else:
-            return "No lab data"
+            return 'No lab data'
 
-    summary['Lab_Data_Timing'] = summary['Lab_Timing'].apply(classify)
+    summary = merged.groupby('Patient_ID')['Lab_Timing'].apply(classify_patient).reset_index()
+    summary.columns = ['Patient_ID', 'Lab_Data_Timing']
+
     return summary, bd_first_clean
 
 
