@@ -39,7 +39,7 @@ def filter_by_values(df, column, values):
     Parameters:
     - df: DataFrame to filter
     - column: column name to filter on
-    - values: list of allowed values to retain
+    - values: list of allowed values to keep
     
     Returns:
     - Filtered DataFrame containing only allowed values
@@ -89,6 +89,25 @@ def preprocess_data(df, cleaning_steps):
             df[col] = pd.to_datetime(df[col], errors='coerce')
     return df
 
+
+def get_first_diagnosis(df, diagnosis_col, date_col, patient_col='Patient_ID'):
+    """
+    Get the first diagnosis record per patient based on the diagnosis date
+
+    Parameters:
+    - df: DataFrame with diagnosis records
+    - diagnosis_col: column name for the diagnosis code or text
+    - date_col: column name for the diagnosis date
+    - patient_col: column name for patient ID
+
+    Returns:
+    - DataFrame with the first diagnosis per patient
+    """
+    df = df.copy()
+    df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+    return df.sort_values([patient_col, date_col]).groupby(patient_col).first().reset_index()
+
+
 def extract_labs_relative_to_diagnosis(
     lab_df,
     diag_df,
@@ -104,11 +123,11 @@ def extract_labs_relative_to_diagnosis(
     Extract lab tests that occur after the first bipolar disorder diagnosis
     
     Parameters:
-    - lab_df: DataFrame containing lab results
-    - diag_df: DataFrame containing diagnosis records
+    - lab_df: DataFrame with lab results
+    - diag_df: DataFrame with diagnosis records
     - diagnosis_codes: list of diagnosis codes to identify BD patients
-    - lab_test_names: list of lab test names to retain
-    - patient_col: column name for patient identifier
+    - lab_test_names: list of lab test names to keep
+    - patient_col: column name for patient ID
     - lab_date_col: column name for lab test date
     - diag_code_col: column name for diagnosis code
     - diag_date_col: column name for diagnosis date
@@ -119,7 +138,7 @@ def extract_labs_relative_to_diagnosis(
     """
     diag_df = diag_df[[patient_col, diag_code_col, diag_date_col]].copy()
     diag_df[diag_date_col] = pd.to_datetime(diag_df[diag_date_col], errors='coerce')
-    first_dx = diag_df.sort_values([patient_col, diag_date_col]).groupby(patient_col).first().reset_index()
+    first_dx = get_first_diagnosis(diag_df, diag_code_col, diag_date_col)
     first_dx = first_dx[first_dx[diag_code_col].isin(diagnosis_codes)]
 
     lab_df = lab_df[lab_df[lab_name_col].isin(lab_test_names)].copy()
@@ -146,10 +165,10 @@ def classify_lab_timing(
     or both before and after their first BD diagnosis.
 
     Parameters:
-    - lab_df: DataFrame containing lab records
-    - diag_df: DataFrame containing diagnosis records
+    - lab_df: DataFrame with lab records
+    - diag_df: DataFrame with diagnosis records
     - diagnosis_codes: list of BD ICD codes to filter on
-    - relevant_markers: optional list of lab test names to include
+    - relevant_markers: list of lab test names to include
     - lab_date_col: column name for lab test date
     - diag_date_col: column name for diagnosis date
     - lab_name_col: column name for lab test name
@@ -159,7 +178,6 @@ def classify_lab_timing(
     - summary: DataFrame with one row per patient, showing lab timing classification
     - bd_first_clean: DataFrame of patients whose first-ever diagnosis was BD
     """
-
     # Get first-ever diagnosis per patient
     diag_df = diag_df.copy()
     diag_df[diag_date_col] = pd.to_datetime(diag_df[diag_date_col], errors='coerce')
@@ -186,7 +204,6 @@ def classify_lab_timing(
         else 'Same day',
         axis=1
     )
-
     # Classify lab timing per patient
     def classify_patient(timings):
         timings = set(timings)
@@ -203,6 +220,23 @@ def classify_lab_timing(
     summary.columns = ['Patient_ID', 'Lab_Data_Timing']
 
     return summary, bd_first_clean
+
+
+def pivot_lab_data(df, index_cols, name_col, value_col):
+    """
+    Pivot lab data to create one row per patient per test date, with lab test names as columns.
+
+    Parameters:
+    - df: DataFrame of lab results
+    - index_cols: list of column names to use as the row index 
+    - name_col: column name for lab test names 
+    - value_col: column name for lab test results 
+
+    Returns:
+    - Pivoted DataFrame with lab test names as columns and corresponding values
+    """
+    return df.pivot_table(index=index_cols, columns=name_col, values=value_col, aggfunc='first').reset_index()
+
 
 
 def other_dx_same_day(diag_df, bd_first_clean, bd_codes, diag_date_col='DateCreated'):
@@ -222,4 +256,54 @@ def other_dx_same_day(diag_df, bd_first_clean, bd_codes, diag_date_col='DateCrea
     non_bd = same_day[~same_day['DiagnosisCode_calc'].isin(bd_codes)]
     return non_bd['Patient_ID'].nunique()
 
+
+def non_bd_same_day_with_labs_after(
+    diag_df, bd_labs_after_df, 
+    bd_first_clean, bd_codes,
+    patient_col='Patient_ID',
+    diag_code_col='DiagnosisCode_calc',
+    diag_date_col='DateCreated'
+):
+    """
+    Count how many patients with lab results after BD diagnosis also had a non-BD diagnosis
+    on the same day as their BD diagnosis
+
+    Parameters:
+    - diag_df: DataFrame of all diagnoses
+    - bd_labs_after_df: DataFrame of lab results after BD diagnosis
+    - bd_first_clean: DataFrame of patients whose first diagnosis was BD
+    - bd_codes: list of BD ICD-9 codes
+    - patient_col: name of patient ID column
+    - diag_code_col: name of diagnosis code column
+    - diag_date_col: name of diagnosis date column
+
+    Returns:
+    - Count of patients with non-BD diagnosis on same day as BD diagnosis and labs after
+    """
+    # Filter diagnosis dataframe to same-day non-BD diagnoses
+    merged = diag_df.merge(bd_first_clean[[patient_col, 'First_Diagnosis_Date']], on=patient_col, how='inner')
+    merged[diag_date_col] = pd.to_datetime(merged[diag_date_col], errors='coerce')
+    same_day = merged[merged[diag_date_col] == merged['First_Diagnosis_Date']]
+    non_bd_same_day = same_day[~same_day[diag_code_col].isin(bd_codes)]
+
+    # Get patient IDs from bd_labs_after_df
+    labs_after_patients = set(bd_labs_after_df[patient_col].unique())
+
+    # Combine those with non-BD same-day diagnoses
+    overlap = set(non_bd_same_day[patient_col].unique()) & labs_after_patients
+    return len(overlap)
+
+
+def print_summary_stats(stats):
+    """
+    Print formatted summary statistics from a list of (label, value) pairs.
+
+    Parameters:
+    - stats: list of tuples with a string label and a value
+
+    Returns:
+    - prints output to console
+    """
+    for label, value in stats:
+        print(f"{label}: {value}")
 
