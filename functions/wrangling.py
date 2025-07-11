@@ -108,6 +108,29 @@ def get_first_diagnosis(df, diagnosis_col, date_col, patient_col='Patient_ID'):
     return df.sort_values([patient_col, date_col]).groupby(patient_col).first().reset_index()
 
 
+def get_first_matching_diagnosis(df, diagnosis_col, date_col, target_codes, patient_col='Patient_ID', 
+                                 new_date_col='Diagnosis_Date',
+                                 new_code_col='Diagnosis_Code'):
+    """
+    Get the first diagnosis per patient matching a set of codes.
+
+    Parameters:
+    - df: DataFrame with diagnosis records
+    - diagnosis_col: column name for diagnosis code
+    - date_col: column name for diagnosis date
+    - target_codes: list of codes to filter on
+    - patient_col: column name for patient ID
+    - new_date_col: name for renamed diagnosis date column
+    - new_code_col: name for renamed diagnosis code column
+
+    Returns:
+    - DataFrame with one row per patient for first matching diagnosis
+    """
+    first_dx = get_first_diagnosis(df, diagnosis_col, date_col, patient_col)
+    first_dx = first_dx[first_dx[diagnosis_col].isin(target_codes)].copy()
+    return first_dx.rename(columns={date_col: new_date_col, diagnosis_col: new_code_col})
+
+
 def extract_labs_relative_to_diagnosis(
     lab_df,
     diag_df,
@@ -237,6 +260,24 @@ def pivot_lab_data(df, index_cols, name_col, value_col):
     """
     return df.pivot_table(index=index_cols, columns=name_col, values=value_col, aggfunc='first').reset_index()
 
+
+def split_patients_by_lab_timing(lab_timing_df, timing_col='Lab_Data_Timing', patient_col='Patient_ID'):
+    """
+    Separate patient IDs into groups based on lab timing classification
+
+    Parameters:
+    - lab_timing_df: DataFrame with lab timing summary
+    - timing_col: column that contains timing labels
+    - patient_col: column with patient IDs
+
+    Returns:
+    - Dictionary with keys 'only_before', 'only_after', 'both', each mapping to Patient IDs
+    """
+    return {
+        'only_before': lab_timing_df[lab_timing_df[timing_col] == 'Only before'][patient_col],
+        'only_after': lab_timing_df[lab_timing_df[timing_col] == 'Only after'][patient_col],
+        'both': lab_timing_df[lab_timing_df[timing_col] == 'Both'][patient_col]
+    }
 
 
 def other_dx_same_day(diag_df, bd_first_clean, bd_codes, diag_date_col='DateCreated'):
