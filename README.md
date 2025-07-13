@@ -27,9 +27,8 @@ Contains the supplementary notebooks that explore or test additional wrangling, 
 1. `data-wrangling.ipynb`: Focuses on cohort selection and lab filtering for bipolar disorder patients.
 2. 
 
-
-
 ---
 
-## Environment  
-Code was developed and run in Python 3.11.
+## How to Use
+1. Install Python 3.11
+
