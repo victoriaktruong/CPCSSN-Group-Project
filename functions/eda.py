@@ -4,37 +4,6 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-def load_data(file_path):
-    """Load dataset from CSV."""
-    df = pd.read_csv(file_path)
-    print(f"Loaded dataset with shape: {df.shape}")
-    return df
-
-#reused
-def get_lab_columns(df, meta_cols, predefined_labs=None):
-    """
-    Identify lab columns in a dataset.
-
-    Parameters:
-    - df: DataFrame
-    - meta_cols: List of metadata columns to exclude
-    - predefined_labs: Optional list of lab columns (if provided, use directly)
-
-    Returns:
-    - List of lab columns
-    """
-    if predefined_labs:
-        # Use explicitly provided lab columns
-        lab_cols = predefined_labs
-        print("Using predefined lab columns.")
-    else:
-        # Auto-detect: all columns not in meta_cols
-        lab_cols = [col for col in df.columns if col not in meta_cols]
-        print("Auto-detected lab columns:", lab_cols)
-
-    return lab_cols
-
-
 def summarize_dataframes(datasets):
     """
     Print concise summary of DataFrame structure and content.
@@ -93,9 +62,6 @@ def plot_histograms(df, numeric_cols):
     plt.show()
 
 
-# In[32]:
-
-
 def plot_correlation_matrix(df, numeric_cols):
     """
     Plot correlation matrix for numeric columns.
@@ -142,6 +108,7 @@ def plot_boxplots(df, numeric_cols):
     plt.tight_layout()
     plt.show()
 
+
 def plot_scatter_pairs(df, col_pairs):
     """
     Plot scatter plots for column pairs.
@@ -162,6 +129,7 @@ def plot_scatter_pairs(df, col_pairs):
         plt.title(title)
     plt.tight_layout()
     plt.show()
+
 
 def check_unique_values(df, col):
     """
