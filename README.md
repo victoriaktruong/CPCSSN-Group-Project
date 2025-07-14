@@ -3,7 +3,9 @@
 This repository contains all the data wrangling and analyses scripts for **examining the association between laboratory biomarkers and bipolar disorder diagnosis**. 
 
 
-EMBED PROJECT DIAGRAM INTO README
+### Project Diagram
+
+![Project Diagram](images/diagram.png)
 
 ---
 
