@@ -335,6 +335,41 @@ def non_bd_same_day_with_labs_after(
     return len(overlap)
 
 
+def save_labs_by_timing(
+    lab_df,
+    lab_timing_df,
+    timing_labels=('Before', 'After', 'Both'),
+    patient_col='Patient_ID',
+    timing_col='Lab_Data_Timing',
+    output_prefix='bd_labs'
+):
+    """
+    Save lab data into separate CSV files based on lab timing ('Before', 'After', 'Both')
+
+    Parameters:
+    - lab_df: DataFrame with all lab results (filtered by relevant markers)
+    - lab_timing_df: DataFrame with lab timing classifications per patient
+    - timing_labels: tuple of lab timing labels to extract
+    - patient_col: column name for patient ID
+    - timing_col: column name indicating lab timing
+    - output_prefix: base prefix for output filenames
+
+    Returns:
+    - Dictionary mapping label names to DataFrame
+    """
+    merged = lab_df.merge(lab_timing_df[[patient_col, timing_col]], on=patient_col, how='inner')
+    output_dfs = {}
+
+    for label in timing_labels:
+        subset = merged[merged[timing_col] == label]
+        filename = f"{output_prefix}_{label.lower()}.csv"
+        subset.to_csv(filename, index=False)
+        output_dfs[label.lower()] = subset
+        print(f"Saved {label} labs to {filename}")
+
+    return output_dfs
+    
+
 def print_summary_stats(stats):
     """
     Print formatted summary statistics from a list of (label, value) pairs.
@@ -347,4 +382,3 @@ def print_summary_stats(stats):
     """
     for label, value in stats:
         print(f"{label}: {value}")
-
