@@ -1,200 +1,147 @@
+#load packages
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
+import os
 import numpy as np
 
-# Map diagnosis codes to broader state categories and encode as ordered categorical and numeric.
-def map_encode(
-    data,
-    code='code',
-    mapping_dict=None,
-    ordered_levels=None,
-    new_label='new_label',
-    new_factor='new_factor',
-    new_num='new_num'
-):
-    data = data.copy()
+def summarize_dataframes(datasets):
+    """
+    Print concise summary of DataFrame structure and content.
 
-    data[new_label] = data[code].astype(str).map(mapping_dict)
+    Parameters:
+    - datasets
 
-    data[new_factor] = pd.Categorical(
-        data[new_label],
-        categories=ordered_levels,
-        ordered=True
-    )
+    Returns:
+    - summary
+    """
+    for name, df in datasets.items():
+        print(f"{name} summary")
+        print(df.info())
+        print()
 
-    data[new_num] = data[new_factor].cat.codes
 
-    return data
+def summarize_numeric_statistics(datasets, numeric_columns):
+    """
+    Summarize basic statistics for numeric columns.
 
-# Plot individual trajectories over time for a list of variables.
-def plot_trends(
-    data,
-    variables,
-    date='Date',
-    hue='ID',
-    xlabel='Date',
-    ylabel='Value'
-):
-    data[date] = pd.to_datetime(data[date])
+    Parameters:
+    - datasets (dict): Dictionary of DataFrames.
+    - numeric_columns (dict): Dictionary with names as keys and lists of numeric columns as values.
 
-    n = len(variables)
-    rows = (n + 1) // 2
-    plt.figure(figsize=(15, 5 * rows))
+    Returns:
+    -  A dictionary with names as keys and summary statistics as values
+    """
+    summaries = {}
+    for name, df in datasets.items():
+        if name in numeric_columns:
+            summaries[name] = df[numeric_columns[name]].describe()
+            print(f"\n{name} statistics:")
+            print(summaries[name])
+    return summaries
 
-    for i, var in enumerate(variables, 1):
-        plt.subplot(rows, 2, i)
-        sns.lineplot(data=data, x=date, y=var, hue=hue, alpha=0.3, legend=None)
-        plt.title(var)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
 
-    plt.tight_layout()
-    plt.show()
+def plot_histograms(df, numeric_cols):
+    """
+    Plot histograms for numeric columns.
 
-# Plot trends of lab variables over grouped axis (e.g., VisitOrder), grouped by hue (e.g., State).
-def plot_grouped_trends(
-    data,
-    variables,
-    group_x='group_x',
-    group_hue='group_hue',
-    xlabel='x',
-    ylabel='y',
-    title_prefix='',
-    dropna=True
-):
-    n = len(variables)
-    rows = (n + 1) // 2
-    plt.figure(figsize=(15, 5 * rows))
+    Parameters:
+    - df (pd.DataFrame): DataFrame.
+    - numeric_cols (list): Numeric column names.
 
-    for i, var in enumerate(variables, 1):
-        plt.subplot(rows, 2, i)
-
-        summary = data.groupby([group_hue, group_x])[var].mean().reset_index()
-
-        if dropna:
-            summary = summary.dropna(subset=[group_hue, var])
-
-        if summary.empty:
-            print(f"[Skip] No data for {var}")
-            continue
-
-        sns.lineplot(data=summary, x=group_x, y=var, hue=group_hue, marker='o')
-        plt.title(f'{title_prefix}{var} Trend by {group_hue}')
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.legend(title=group_hue, bbox_to_anchor=(1.05, 1), loc='upper left')
-
-    plt.tight_layout()
-    plt.show()
-
-# Plot histograms of lab variables grouped by a group
-def plot_grouped_histograms(data, variables, group='group', 
-                        bins='auto', element='step', stat='density',
-                        common_norm=False, figsize=(15, 20), layout=(4, 2)):
-    n_rows, n_cols = layout
-    total_plots = len(variables)
-    
-    plt.figure(figsize=figsize)
-    for i, var in enumerate(variables, 1):
+     Returns:
+    - Histogram(s)
+    """
+    n_cols = min(len(numeric_cols), 4)
+    n_rows = (len(numeric_cols) + n_cols - 1) // n_cols
+    plt.figure(figsize=(10, 6))
+    for i, col in enumerate(numeric_cols, 1):
         plt.subplot(n_rows, n_cols, i)
-        sns.histplot(data=data, x=var, hue=group,
-                     bins=bins, element=element, stat=stat,
-                     common_norm=common_norm)
-        plt.title(f'Histogram of {var} by {group}')
-        plt.xlabel(var)
-        plt.ylabel(stat.capitalize())
+        df[col].dropna().hist(bins=10)
+        plt.title(col.replace('_', ' '))
     plt.tight_layout()
     plt.show()
 
-# Plot boxplots of lab variables grouped by a hue
-def plot_grouped_boxplots(data, variables, group='group', 
-                          figsize=(15, 20), layout=(4, 2), orient='v'):
-    n_rows, n_cols = layout
-    total_plots = len(variables)
 
-    plt.figure(figsize=figsize)
-    for i, var in enumerate(variables, 1):
+def plot_correlation_matrix(df, numeric_cols):
+    """
+    Plot correlation matrix for numeric columns.
+
+    Parameters:
+    - df (pd.DataFrame): DataFrame.
+    - numeric_cols (list): Numeric column names.
+
+    Returns:
+    - corr_matrix (pd.DataFrame): Correlation matrix.
+    """
+    corr_matrix = df[numeric_cols].corr()
+    print("\nCorrelation matrix:")
+    print(corr_matrix)
+    plt.figure(figsize=(8, 6))
+    plt.imshow(corr_matrix, cmap='coolwarm')
+    plt.colorbar()
+    plt.xticks(range(len(numeric_cols)), numeric_cols, rotation=45)
+    plt.yticks(range(len(numeric_cols)), numeric_cols)
+    plt.title('Correlation Matrix')
+    plt.tight_layout()
+    plt.show()
+    return corr_matrix
+
+
+def plot_boxplots(df, numeric_cols):
+    """
+    Plot boxplots for numeric columns.
+
+    Parameters:
+    - df (pd.DataFrame): DataFrame.
+    - numeric_cols (list): Numeric column names.
+
+    Returns:
+    - boxplot(s)
+    """
+    n_cols = min(len(numeric_cols), 4)
+    n_rows = (len(numeric_cols) + n_cols - 1) // n_cols
+    plt.figure(figsize=(10, 6))
+    for i, col in enumerate(numeric_cols, 1):
         plt.subplot(n_rows, n_cols, i)
-        sns.boxplot(data=data, x=group if orient == 'v' else var,
-                    y=var if orient == 'v' else group)
-        plt.title(f'Boxplot of {var} by {group}')
-        plt.xlabel(group if orient == 'v' else var)
-        plt.ylabel(var if orient == 'v' else group)
+        plt.boxplot(df[col].dropna())
+        plt.title(col.replace('_', ' '))
     plt.tight_layout()
     plt.show()
 
 
-# Kruskal-Wallis test for each variable across groups
-from scipy.stats import kruskal
+def plot_scatter_pairs(df, col_pairs):
+    """
+    Plot scatter plots for column pairs.
 
-def kruskal_test(
-    data,
-    variables,
-    group_col,
-    min_group_size=3,
-    verbose=True,
-    return_effect_size=False,
-    export_path=None
-):
+    Parameters:
+    - df (pd.DataFrame): DataFrame.
+    - col_pairs (list): List of (x_col, y_col, title) tuples.
 
-    results = []
+    Returns: 
+    - scatterplot(s)
+    """
+    plt.figure(figsize=(10, 4))
+    for i, (x_col, y_col, title) in enumerate(col_pairs, 1):
+        plt.subplot(1, 2, i)
+        plt.scatter(df[x_col], df[y_col])
+        plt.xlabel(x_col.replace('_', ' '))
+        plt.ylabel(y_col.replace('_', ' '))
+        plt.title(title)
+    plt.tight_layout()
+    plt.show()
 
-    for var in variables:
-        # Drop missing values in both variable and group column
-        df_var = data.dropna(subset=[var, group_col])
-        group_counts = df_var.groupby(group_col)[var].count()
 
-        # Keep only groups with at least min_group_size
-        valid_groups = group_counts[group_counts >= min_group_size].index.tolist()
+def check_unique_values(df, col):
+    """
+    Print unique values in a column.
 
-        filtered_groups = []
-        for g in valid_groups:
-            values = df_var[df_var[group_col] == g][var].values
-            if len(np.unique(values)) > 1: 
-                filtered_groups.append(g)
+    Parameters:
+    - df (pd.DataFrame): DataFrame.
+    - col (str): Column name.
 
-        if len(filtered_groups) < 2:
-            if verbose:
-                print(f"{var}: Not enough valid groups for comparison (n_groups < 2).")
-            results.append({
-                'variable': var,
-                'n_groups': len(filtered_groups),
-                'H_stat': np.nan,
-                'p_value': np.nan
-            })
-            continue
-
-        try:
-            groups = [df_var[df_var[group_col] == g][var].values for g in filtered_groups]
-            stat, p = kruskal(*groups)
-            N = sum(len(g) for g in groups)
-            eta_sq = stat / (N - 1) if return_effect_size else None
-
-            if verbose:
-                print(f'{var}: H={stat:.3f}, p={p:.4f}' + (f", η²={eta_sq:.4f}" if return_effect_size else ""))
-
-            results.append({
-                'variable': var,
-                'n_groups': len(filtered_groups),
-                'H_stat': stat,
-                'p_value': p
-            })
-        except ValueError as e:
-            if verbose:
-                print(f"{var}: Test failed - {e}")
-            results.append({
-                'variable': var,
-                'n_groups': len(filtered_groups),
-                'H_stat': np.nan,
-                'p_value': np.nan
-            })
-
-    result_df = pd.DataFrame(results)
-
-    if export_path:
-        result_df.to_csv(export_path, index=False)
-        if verbose:
-            print(f"Results saved to {export_path}")
-
-    return result_df
+    Returns:
+    - unique_values 
+    """
+    unique_values = df[col].unique()
+    print(f"Unique values in {col}: {unique_values}")
+    return unique_values
