@@ -30,7 +30,7 @@ Contains the Jupyter Notebooks used to process and analyze the data.
 Contains the supplementary notebooks that explore or test additional wrangling, preprocessing, and modeling scenarios that are not in the `main.ipynb`. Notebooks are listed in order:
 1. `data_wrangling.ipynb`: Focuses on cohort selection and lab filtering for bipolar disorder patients.
 2. `missing_labs.ipnyb`: Focuses on visualizing missingness to confirm that the correct lab columns are being selected and imputed appropriately. Also contains a function that only selects lab columns that have less than 50% missing data (ultimately was not used in main.ipnyb). 
-3. `eda_modelling.ipynb`: Focuses on analyzing the trends of laboratory markers, testing their association with bipolar disorder, and applying statistical modeling to validate these associations.
+3. `EDA_MODELLING.ipynb`: Focuses on analyzing the trends of laboratory markers, testing their association with bipolar disorder, and applying statistical modeling to validate these associations.
 ---
 
 ## How to Use
