@@ -17,7 +17,7 @@ Contains all scripts defining functions that are used in the Jupyter Notebooks, 
 1. `wrangling.py`: Contains functions for loading, cleaning, filtering, and restructuring datasets.
 2. `missing_labs.py`: Contains functions for loading a csv dataset, identifying columns with lab markers, printing and visualizing a missingness summary of the lab marker columns, imputing missing lab values using mean or median (depending on skewness of data), and saving a complete imputed dataset to csv.
 3. `eda.py`: Contains functions for simple exploratory data analysis, including summarizing dataset structure and content, calculating descriptive statistics, and creating visualizations (histograms, correlation matrices, boxplots, and scatter plots) to analyze distributions. 
-4. `eda_model.py`: Contains functions for mapping and encoding variables, plotting individual trajectories over time for a list of variables, and histograms and boxplots of trajectories.
+4. `eda_model.py`: Contains functions for mapping and encoding variables, plotting individual trajectories over time for a list of variables, histograms and boxplots of trajectories, and Kruskal-Walls Test.
 
 ### `notebooks/`
 Contains the Jupyter Notebooks used to process and analyze the data.
