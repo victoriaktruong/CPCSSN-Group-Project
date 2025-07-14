@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-# Map diagnosis codes to categories and encode as ordered categorical and numeric.
+# Map one variable to categories and encode as ordered categorical or numeric.
 def map_encode(
     data,
     code='code',
@@ -52,7 +52,7 @@ def plot_trends(
     plt.tight_layout()
     plt.show()
 
-# Plot trends of lab variables over grouped axis (e.g., VisitOrder), grouped by group (e.g., State).
+# Plot trends of variables over time, grouped by group.
 def plot_grouped_trends(
     data,
     variables,
@@ -88,7 +88,7 @@ def plot_grouped_trends(
     plt.tight_layout()
     plt.show()
 
-# Plot histograms of lab variables grouped by a group
+# Plot histograms of variables grouped by a group
 def plot_grouped_histograms(data, variables, group='group', 
                         bins='auto', element='step', stat='density',
                         common_norm=False, figsize=(15, 20), layout=(4, 2)):
@@ -107,7 +107,7 @@ def plot_grouped_histograms(data, variables, group='group',
     plt.tight_layout()
     plt.show()
 
-# Plot boxplots of lab variables grouped by a group
+# Plot boxplots of variables grouped by a group
 def plot_grouped_boxplots(data, variables, group='group', 
                           figsize=(15, 20), layout=(4, 2), orient='v'):
     n_rows, n_cols = layout
