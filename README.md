@@ -5,7 +5,7 @@ This repository contains all the data wrangling and analyses scripts for **exami
 
 ### Project Diagram
 
-![Project Diagram](images/diagram.png)
+![Project Diagram](images/project_diagram.png)
 
 ---
 
