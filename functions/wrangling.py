@@ -246,25 +246,6 @@ def pivot_lab_data(df, index_cols, name_col, value_col):
     return df.pivot_table(index=index_cols, columns=name_col, values=value_col, aggfunc='first').reset_index()
 
 
-def split_patients_by_lab_timing(lab_timing_df, timing_col='Lab_Data_Timing', patient_col='Patient_ID'):
-    """
-    Separate patient IDs into groups based on lab timing classification
-
-    Parameters:
-    - lab_timing_df: DataFrame with lab timing summary
-    - timing_col: column that contains timing labels
-    - patient_col: column with patient IDs
-
-    Returns:
-    - dictionary with keys 'only_before', 'only_after', 'both', each mapping to Patient IDs
-    """
-    return {
-        'only_before': lab_timing_df[lab_timing_df[timing_col] == 'Only before'][patient_col],
-        'only_after': lab_timing_df[lab_timing_df[timing_col] == 'Only after'][patient_col],
-        'both': lab_timing_df[lab_timing_df[timing_col] == 'Both'][patient_col]
-    }
-
-
 def add_demographics_to_labs(
     lab_df,patient_df,
     id_col='Patient_ID',
@@ -282,6 +263,25 @@ def add_demographics_to_labs(
     lab_df = lab_df.merge(patient_df, on=id_col, how='left')
     lab_df['Age'] = lab_df[lab_date_col].dt.year - lab_df[birth_col]
     return lab_df
+
+
+def split_patients_by_lab_timing(lab_timing_df, timing_col='Lab_Data_Timing', patient_col='Patient_ID'):
+    """
+    Separate patient IDs into groups based on lab timing classification
+
+    Parameters:
+    - lab_timing_df: DataFrame with lab timing summary
+    - timing_col: column that contains timing labels
+    - patient_col: column with patient IDs
+
+    Returns:
+    - dictionary with keys 'only_before', 'only_after', 'both', each mapping to Patient IDs
+    """
+    return {
+        'only_before': lab_timing_df[lab_timing_df[timing_col] == 'Only before'][patient_col],
+        'only_after': lab_timing_df[lab_timing_df[timing_col] == 'Only after'][patient_col],
+        'both': lab_timing_df[lab_timing_df[timing_col] == 'Both'][patient_col]
+    }
 
 
 def other_dx_same_day(diag_df, bd_first_clean, bd_codes, diag_date_col='DateCreated'):
