@@ -9,7 +9,7 @@ def load_csv(file_paths, delimiter='|'):
     - delimiter: separator used in the CSV files
     
     Returns:
-    - datasets: dictionary of loaded DataFrames with dataset names as keys
+    - dictionary of loaded DataFrames with dataset names as keys
     """
     datasets = {}
     for name, path in file_paths.items():
@@ -25,26 +25,11 @@ def select_columns(datasets, columns_to_keep):
     - columns_to_keep: dictionary mapping dataset names to a list of columns to keep
     
     Returns:
-    - datasets: dictionary of DataFrames with only the selected columns
+    - dictionary of DataFrames with only the selected columns
     """
     for name, columns in columns_to_keep.items():
         datasets[name] = datasets[name][columns]
     return datasets
-
-
-def filter_by_values(df, column, values):
-    """
-    Filter rows where a column's value is within a list of allowed values
-    
-    Parameters:
-    - df: DataFrame to filter
-    - column: column name to filter on
-    - values: list of allowed values to keep
-    
-    Returns:
-    - Filtered DataFrame containing only allowed values
-    """
-    return df[df[column].isin(values)]
 
 
 def replace_string_nan(df, column):
@@ -56,7 +41,7 @@ def replace_string_nan(df, column):
     - column: column to clean
 
     Returns:
-    - Updated DataFrame with 'nan' strings replaced by NaN
+    - updated DataFrame with 'nan' strings replaced by NaN
     """
     df.loc[df[column].str.lower() == "nan", column] = pd.NA
     return df
@@ -76,7 +61,7 @@ def preprocess_data(df, cleaning_steps):
             - datetime: converts to datetime format
     
     Returns:
-    - Cleaned DataFrame
+    - cleaned DataFrame
     """
     for col, method in cleaning_steps:
         if method == 'uppercase':
@@ -112,7 +97,7 @@ def get_first_matching_diagnosis(df, diagnosis_col, date_col, target_codes, pati
                                  new_date_col='Diagnosis_Date',
                                  new_code_col='Diagnosis_Code'):
     """
-    Get the first diagnosis per patient matching a set of codes.
+    Find the first diagnosis by date for each patient that matches the diagnosis codes
 
     Parameters:
     - df: DataFrame with diagnosis records
@@ -185,7 +170,7 @@ def classify_lab_timing(
 ):
     """
     Classify patients based on whether lab tests occurred before, after,
-    or both before and after their first BD diagnosis.
+    or both before and after their first BD diagnosis
 
     Parameters:
     - lab_df: DataFrame with lab records
@@ -216,7 +201,7 @@ def classify_lab_timing(
     if relevant_markers is not None:
         lab_df = lab_df[lab_df[lab_name_col].isin(relevant_markers)]
 
-    # Parse lab dates and merge with diagnosis
+    # Process lab dates and merge with diagnosis
     lab_df[lab_date_col] = pd.to_datetime(lab_df[lab_date_col], errors='coerce')
     merged = lab_df.merge(bd_first_clean[['Patient_ID', 'First_Diagnosis_Date']], on='Patient_ID', how='inner')
 
@@ -256,7 +241,7 @@ def pivot_lab_data(df, index_cols, name_col, value_col):
     - value_col: column name for lab test results 
 
     Returns:
-    - Pivoted DataFrame with lab test names as columns and corresponding values
+    - pivoted DataFrame with lab test names as columns and lab test values
     """
     return df.pivot_table(index=index_cols, columns=name_col, values=value_col, aggfunc='first').reset_index()
 
@@ -271,13 +256,32 @@ def split_patients_by_lab_timing(lab_timing_df, timing_col='Lab_Data_Timing', pa
     - patient_col: column with patient IDs
 
     Returns:
-    - Dictionary with keys 'only_before', 'only_after', 'both', each mapping to Patient IDs
+    - dictionary with keys 'only_before', 'only_after', 'both', each mapping to Patient IDs
     """
     return {
         'only_before': lab_timing_df[lab_timing_df[timing_col] == 'Only before'][patient_col],
         'only_after': lab_timing_df[lab_timing_df[timing_col] == 'Only after'][patient_col],
         'both': lab_timing_df[lab_timing_df[timing_col] == 'Both'][patient_col]
     }
+
+
+def add_demographics_to_labs(
+    lab_df,patient_df,
+    id_col='Patient_ID',
+    sex_col='Sex',
+    birth_col='BirthYear',
+    lab_date_col='PerformedDate'
+):
+    """
+    Add patient sex and birth year into lab results and calculate age at time of lab
+
+    Returns:
+        DataFrame with 'Sex' and 'Age' columns added
+    """
+    patient_df = patient_df[[id_col, sex_col, birth_col]].copy()
+    lab_df = lab_df.merge(patient_df, on=id_col, how='left')
+    lab_df['Age'] = lab_df[lab_date_col].dt.year - lab_df[birth_col]
+    return lab_df
 
 
 def other_dx_same_day(diag_df, bd_first_clean, bd_codes, diag_date_col='DateCreated'):
@@ -290,7 +294,7 @@ def other_dx_same_day(diag_df, bd_first_clean, bd_codes, diag_date_col='DateCrea
     - diag_date_col: name of the column with diagnosis dates
     
     Returns:
-    - Number of patients with non-BD diagnoses on the same day as their BD diagnosis
+    - number of patients with non-BD diagnoses on the same day as their BD diagnosis
     """
     merged = diag_df.merge(bd_first_clean[['Patient_ID', 'First_Diagnosis_Date']], on='Patient_ID', how='inner')
     same_day = merged[merged[diag_date_col] == merged['First_Diagnosis_Date']]
@@ -319,7 +323,7 @@ def non_bd_same_day_with_labs_after(
     - diag_date_col: name of diagnosis date column
 
     Returns:
-    - Count of patients with non-BD diagnosis on same day as BD diagnosis and labs after
+    - count of patients with non-BD diagnosis on same day as BD diagnosis and labs after
     """
     # Filter diagnosis dataframe to same-day non-BD diagnoses
     merged = diag_df.merge(bd_first_clean[[patient_col, 'First_Diagnosis_Date']], on=patient_col, how='inner')
@@ -337,7 +341,7 @@ def non_bd_same_day_with_labs_after(
 
 def print_summary_stats(stats):
     """
-    Print formatted summary statistics from a list of (label, value) pairs.
+    Print formatted summary statistics from a list of (label, value) pairs
 
     Parameters:
     - stats: list of tuples with a string label and a value
