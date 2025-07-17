@@ -177,20 +177,93 @@ def filter_labs_within_window(df, date_col, ref_date_col, window_days):
     ]
 
 
-def get_all_labs_from_first_date(df, id_col, date_col):
+def pivot_lab_data(df, index_cols, name_col, value_col):
     """
-    Get all lab rows from each patient's first available lab date
+    Pivot lab data to create one row per patient per test date, with lab test names as columns.
 
     Parameters:
-    - df: DataFrame of labs
-    - id_col: patient ID column
-    - date_col: column representing lab test date
+    - df: DataFrame of lab results
+    - index_cols: list of column names to use as the row index 
+    - name_col: column name for lab test names 
+    - value_col: column name for lab test results 
 
     Returns:
-    - DataFrame with all lab rows from the earliest lab date per patient
+    - pivoted DataFrame with lab test names as columns and lab test values
     """
-    first_dates = df.groupby(id_col)[date_col].min().reset_index()
-    return df.merge(first_dates, on=[id_col, date_col], how='inner')
+    return df.pivot_table(index=index_cols, columns=name_col, values=value_col, aggfunc='first').reset_index()
+
+
+def add_demographics_to_labs(
+    lab_df, patient_df,
+    id_col='Patient_ID',
+    sex_col='Sex',
+    birth_col='BirthYear',
+    lab_date_col='PerformedDate'
+):
+    """
+    Add patient sex and birth year into lab results and calculate age at time of lab
+    
+    Parameters:
+    - lab_df: DataFrame containing lab test results with including test dates
+    - patient_df: DataFrame containing patient demographic information
+    - id_col: column for patient ID
+    - sex_col: column for patient sex 
+    - birth_col: column for patient birth year
+    - lab_date_col: column for lab test date
+
+    Returns:
+    - DataFrame with patient sex and calculated age added
+    """
+    patient_df = patient_df[[id_col, sex_col, birth_col]].copy()
+    lab_df = lab_df.merge(patient_df, on=id_col, how='left')
+    lab_df['Age'] = lab_df[lab_date_col].dt.year - lab_df[birth_col]
+    return lab_df
+
+
+def label_comorbidity(
+    diag_df,
+    bd_dx_df,
+    target_codes,
+    patient_col='Patient_ID',
+    code_col='DiagnosisCode_calc',
+    date_col='DateCreated',
+    bd_date_col='BD_Diagnosis_Date'
+):
+    """
+    Identify patients with non-BD diagnoses on or after their BD diagnosis date
+    
+    Parameters:
+    - diag_df: full diagnosis DataFrame
+    - bd_dx_df: DataFrame with target diagnosis dates per patient
+    - target_codes: list of target codes to exclude (e.g., BD codes)
+    - patient_col: name of patient ID column
+    - code_col: name of diagnosis code column
+    - date_col: name of diagnosis date column
+    - bd_date_col: name of the diagnosis date in bd_dx_df
+
+    Returns:
+    - patient IDs with comorbidity
+    """
+    diag_df = diag_df.copy()
+    diag_df[date_col] = pd.to_datetime(diag_df[date_col], errors='coerce')
+    diag_df[code_col] = diag_df[code_col].astype(str).str.strip()
+    
+    # Exclude invalid codes and target diagnosis codes
+    diag_df = diag_df[
+        (diag_df[code_col].str.lower() != 'nan') & 
+        (~diag_df[code_col].str.upper().str.startswith('V')) & # Medical examination codes (not diagnoses)
+        (~diag_df[code_col].isin(target_codes))
+    ]
+    
+    # Merge in target diagnosis date
+    diag_df = diag_df.merge(bd_dx_df[[patient_col, bd_date_col]], on=patient_col, how='left')
+
+    # Identify comorbidity: diagnosis on or after target diagnosis date
+    comorbid_patients = diag_df[
+        diag_df[date_col] >= diag_df[bd_date_col]
+    ][patient_col].unique()
+
+    return set(comorbid_patients)
 
 
 def classify_lab_timing(
@@ -265,86 +338,6 @@ def classify_lab_timing(
     return summary, bd_first_clean
 
 
-def pivot_lab_data(df, index_cols, name_col, value_col):
-    """
-    Pivot lab data to create one row per patient per test date, with lab test names as columns.
-
-    Parameters:
-    - df: DataFrame of lab results
-    - index_cols: list of column names to use as the row index 
-    - name_col: column name for lab test names 
-    - value_col: column name for lab test results 
-
-    Returns:
-    - pivoted DataFrame with lab test names as columns and lab test values
-    """
-    return df.pivot_table(index=index_cols, columns=name_col, values=value_col, aggfunc='first').reset_index()
-
-
-def add_demographics_to_labs(
-    lab_df,patient_df,
-    id_col='Patient_ID',
-    sex_col='Sex',
-    birth_col='BirthYear',
-    lab_date_col='PerformedDate'
-):
-    """
-    Add patient sex and birth year into lab results and calculate age at time of lab
-
-    Returns:
-        DataFrame with 'Sex' and 'Age' columns added
-    """
-    patient_df = patient_df[[id_col, sex_col, birth_col]].copy()
-    lab_df = lab_df.merge(patient_df, on=id_col, how='left')
-    lab_df['Age'] = lab_df[lab_date_col].dt.year - lab_df[birth_col]
-    return lab_df
-
-def label_comorbidity(
-    diag_df,
-    bd_dx_df,
-    target_codes,
-    patient_col='Patient_ID',
-    code_col='DiagnosisCode_calc',
-    date_col='DateCreated',
-    bd_date_col='BD_Diagnosis_Date'
-):
-    """
-    Identify patients with non-BD diagnoses on or after their BD diagnosis date
-    
-    Parameters:
-    - diag_df: full diagnosis DataFrame
-    - bd_dx_df: DataFrame with target diagnosis dates per patient
-    - target_codes: list of target codes to exclude (e.g., BD codes)
-    - patient_col: name of patient ID column
-    - code_col: name of diagnosis code column
-    - date_col: name of diagnosis date column
-    - bd_date_col: name of the diagnosis date in bd_dx_df
-
-    Returns:
-    - patient IDs with comorbidity
-    """
-    diag_df = diag_df.copy()
-    diag_df[date_col] = pd.to_datetime(diag_df[date_col], errors='coerce')
-    diag_df[code_col] = diag_df[code_col].astype(str).str.strip()
-    
-    # Exclude invalid codes and target diagnosis codes
-    diag_df = diag_df[
-        (diag_df[code_col].str.lower() != 'nan') & 
-        (~diag_df[code_col].str.upper().str.startswith('V')) & # Medical examination codes (not diagnoses)
-        (~diag_df[code_col].isin(target_codes))
-    ]
-    
-    # Merge in target diagnosis date
-    diag_df = diag_df.merge(bd_dx_df[[patient_col, bd_date_col]], on=patient_col, how='left')
-
-    # Identify comorbidity: diagnosis on or after target diagnosis date
-    comorbid_patients = diag_df[
-        diag_df[date_col] >= diag_df[bd_date_col]
-    ][patient_col].unique()
-
-    return set(comorbid_patients)
-
-
 def split_patients_by_lab_timing(lab_timing_df, timing_col='Lab_Data_Timing', patient_col='Patient_ID'):
     """
     Separate patient IDs into groups based on lab timing classification
@@ -362,6 +355,40 @@ def split_patients_by_lab_timing(lab_timing_df, timing_col='Lab_Data_Timing', pa
         'only_after': lab_timing_df[lab_timing_df[timing_col] == 'Only after'][patient_col],
         'both': lab_timing_df[lab_timing_df[timing_col] == 'Both'][patient_col]
     }
+
+
+def ensure_patient_id_column(obj):
+    """
+    Ensure input object contains an explicit 'Patient_ID' column
+
+    Parameters:
+    - obj: can be a pandas Index, Series, or DataFrame
+
+    Returns:
+    - DataFrame with a Patient_ID column
+
+    Raises:
+    - value error if 'Patient_ID' column is missing in a DataFrame
+    - type error if input type is not supported
+    """
+    if isinstance(obj, pd.Index):
+        return obj.to_frame(index=False, name='Patient_ID')
+    
+    elif isinstance(obj, pd.Series):
+        df = obj.reset_index(drop=True).to_frame()
+        df.columns = ['Patient_ID']
+        return df
+    
+    elif isinstance(obj, pd.DataFrame):
+        if 'Patient_ID' not in obj.columns:
+            if obj.index.name == 'Patient_ID':
+                return obj.reset_index()
+            else:
+                raise ValueError("Expected 'Patient_ID' column not found.")
+        return obj
+    
+    else:
+        raise TypeError("Unsupported type: expected Index, Series, or DataFrame.")
 
 
 def other_dx_same_day(diag_df, bd_first_clean, bd_codes, diag_date_col='DateCreated'):
