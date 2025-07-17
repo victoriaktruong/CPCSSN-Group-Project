@@ -158,6 +158,41 @@ def extract_labs_relative_to_diagnosis(
     return merged[merged['Lab_Timing'] == 'After']
 
 
+def filter_labs_within_window(df, date_col, ref_date_col, window_days):
+    """
+    Filter rows where date_col falls within a specified window after ref_date_col
+
+    Parameters:
+    - df: DataFrame with time-based events (labs)
+    - date_col: column name for the event date, like lab date
+    - ref_date_col: column name for the reference date (e.g., diagnosis date)
+    - window_days: number of days after ref_date_col to include
+
+    Returns:
+    - filtered DataFrame with events within the window
+    """
+    return df[
+        (df[date_col] >= df[ref_date_col]) &
+        (df[date_col] <= df[ref_date_col] + pd.Timedelta(days=window_days))
+    ]
+
+
+def get_all_labs_from_first_date(df, id_col, date_col):
+    """
+    Get all lab rows from each patient's first available lab date
+
+    Parameters:
+    - df: DataFrame of labs
+    - id_col: patient ID column
+    - date_col: column representing lab test date
+
+    Returns:
+    - DataFrame with all lab rows from the earliest lab date per patient
+    """
+    first_dates = df.groupby(id_col)[date_col].min().reset_index()
+    return df.merge(first_dates, on=[id_col, date_col], how='inner')
+
+
 def classify_lab_timing(
     lab_df,
     diag_df,
@@ -263,6 +298,51 @@ def add_demographics_to_labs(
     lab_df = lab_df.merge(patient_df, on=id_col, how='left')
     lab_df['Age'] = lab_df[lab_date_col].dt.year - lab_df[birth_col]
     return lab_df
+
+def label_comorbidity(
+    diag_df,
+    bd_dx_df,
+    target_codes,
+    patient_col='Patient_ID',
+    code_col='DiagnosisCode_calc',
+    date_col='DateCreated',
+    bd_date_col='BD_Diagnosis_Date'
+):
+    """
+    Identify patients with non-BD diagnoses on or after their BD diagnosis date
+    
+    Parameters:
+    - diag_df: full diagnosis DataFrame
+    - bd_dx_df: DataFrame with target diagnosis dates per patient
+    - target_codes: list of target codes to exclude (e.g., BD codes)
+    - patient_col: name of patient ID column
+    - code_col: name of diagnosis code column
+    - date_col: name of diagnosis date column
+    - bd_date_col: name of the diagnosis date in bd_dx_df
+
+    Returns:
+    - patient IDs with comorbidity
+    """
+    diag_df = diag_df.copy()
+    diag_df[date_col] = pd.to_datetime(diag_df[date_col], errors='coerce')
+    diag_df[code_col] = diag_df[code_col].astype(str).str.strip()
+    
+    # Exclude invalid codes and target diagnosis codes
+    diag_df = diag_df[
+        (diag_df[code_col].str.lower() != 'nan') & 
+        (~diag_df[code_col].str.upper().str.startswith('V')) & # Medical examination codes (not diagnoses)
+        (~diag_df[code_col].isin(target_codes))
+    ]
+    
+    # Merge in target diagnosis date
+    diag_df = diag_df.merge(bd_dx_df[[patient_col, bd_date_col]], on=patient_col, how='left')
+
+    # Identify comorbidity: diagnosis on or after target diagnosis date
+    comorbid_patients = diag_df[
+        diag_df[date_col] >= diag_df[bd_date_col]
+    ][patient_col].unique()
+
+    return set(comorbid_patients)
 
 
 def split_patients_by_lab_timing(lab_timing_df, timing_col='Lab_Data_Timing', patient_col='Patient_ID'):
