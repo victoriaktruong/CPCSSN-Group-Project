@@ -220,6 +220,52 @@ def add_demographics_to_labs(
     return lab_df
 
 
+def same_day_comorbidity(
+    diag_df,
+    bd_dx_df,
+    target_codes,
+    final_patient_ids,
+    patient_col='Patient_ID',
+    code_col='DiagnosisCode_calc',
+    date_col='DateCreated',
+    bd_date_col='BD_Diagnosis_Date'
+):
+    """
+    Count patients who had a non-BD diagnosis on the same day as their BD diagnosis
+
+    Parameters:
+    - diag_df: diagnosis DataFrame
+    - bd_dx_df: DataFrame with BD diagnosis dates
+    - target_codes: list of BD codes to exclude
+    - final_patient_ids: set of patients to restrict to (final lab cohort)
+    - patient_col, code_col, date_col: column names
+    - bd_date_col: column for BD diagnosis date
+
+    Returns:
+    - Number of patients with same-day non-BD comorbidity
+    """
+    diag = diag_df.copy()
+    diag[date_col] = pd.to_datetime(diag[date_col], errors='coerce')
+    diag[code_col] = diag[code_col].astype(str).str.strip()
+
+    # Merge BD diagnosis date
+    diag = diag.merge(
+        bd_dx_df[[patient_col, bd_date_col]],
+        on=patient_col,
+        how='inner'
+    )
+
+    # Filter same-day non-BD, not V-codes, not 'nan', in final cohort
+    same_day = diag[
+        (diag[date_col] == diag[bd_date_col]) &
+        (~diag[code_col].isin(target_codes)) &
+        (~diag[code_col].str.upper().str.startswith("V")) &
+        (diag[code_col].str.lower() != "nan") &
+        (diag[patient_col].isin(final_patient_ids))
+    ]
+    return same_day[patient_col].nunique()
+
+
 def label_comorbidity(
     diag_df,
     bd_dx_df,
