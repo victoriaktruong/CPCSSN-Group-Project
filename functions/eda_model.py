@@ -37,7 +37,7 @@ import matplotlib.pyplot as plt
 def plot_by_group(
     df, 
     y_vars, 
-    x='BD_Code', 
+    x='', 
     hue=None, 
     plot_type='box', 
     palette='Set2',
@@ -78,6 +78,7 @@ def plot_by_group(
         else:
             raise ValueError("plot_type must be one of 'box', 'violin', 'bar', or 'hist'")
 
+        plt.xticks(rotation=45)
         plt.tight_layout()
         plt.show()
 
