@@ -55,21 +55,54 @@ def scale_aux_vars(df, scale_factors):
             print(f"Scaled {col} by {factor}")
     return df
 
+
 #function to apply knn imputation
-def knn_imp(df, knn_cols, n_neighbors=5, weights='uniform'):
+def knn_imp(df, knn_cols, n_neighbors=5, weights='uniform', exclude_cols=None):
     """
     Apply KNN imputation to specified columns.
+    
     Parameters:
     - df: DataFrame
-    - knn_cols: List of columns to include in KNN
+    - knn_cols: List of columns to include in KNN (predictors and targets)
     - n_neighbors: Number of neighbors (default=5)
-    - weights: Weight function 
+    - weights: Weight function ('uniform' or 'distance')
+    - exclude_cols: Columns to use as predictors but not to be imputed (default=None)
     """
     from sklearn.impute import KNNImputer
     imputer = KNNImputer(n_neighbors=n_neighbors, weights=weights)
-    df[knn_cols] = imputer.fit_transform(df[knn_cols])
+    imputed = imputer.fit_transform(df[knn_cols])
+    imputed_df = pd.DataFrame(imputed, columns=knn_cols, index=df.index)
+    
+    #keep original values for exclude_cols (sex and age)
+    if exclude_cols:
+        for col in exclude_cols:
+            imputed_df[col] = df[col]
+        print(f"Excluded columns from imputation: {exclude_cols}")
+    
+    #update df with imputed values
+    df[knn_cols] = imputed_df
     print(f"Applied KNN imputation (k={n_neighbors}, weights={weights})")
     return df
+
+#function to scale auxiliary variables back down to normal
+def unscale_aux_vars(df, scale_factors):
+    """
+    Reverse scaling of auxiliary variables before saving.
+    
+    Parameters:
+    df: DataFrame
+    Example scale factors: {"Age": 2, "Sex": 2}
+    
+    Returns:
+    - df with variables scaled back down
+    """
+    for col, factor in scale_factors.items():
+        if col in df.columns:
+            df[col] = df[col] / factor
+            print(f"Unscaled {col} by dividing by {factor}")
+    return df
+
+
 
 #function to save imputed dataset as csv
 def save_csv(df, filename):
