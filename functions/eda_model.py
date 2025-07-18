@@ -27,102 +27,60 @@ def map_encode(
 
     return data
 
-# Plot individual trajectories over time for a list of variables.
-def plot_trends(
-    data,
-    variables,
-    date='Date',
-    hue='ID',
-    xlabel='Date',
-    ylabel='Value'
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Plot by Group
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+def plot_by_group(
+    df, 
+    y_vars, 
+    x='BD_Code', 
+    hue=None, 
+    plot_type='box', 
+    palette='Set2',
+    figsize=(8, 5),
+    bins=20,
+    kde=False
 ):
-    data[date] = pd.to_datetime(data[date])
+    """
+    Flexible grouped plotting function with support for histogram.
 
-    n = len(variables)
-    rows = (n + 1) // 2
-    plt.figure(figsize=(15, 5 * rows))
+    Parameters:
+    - df: pandas DataFrame
+    - y_vars: list of str, variables to plot on y-axis
+    - x: str, grouping variable (default: 'BD_Code')
+    - hue: str or None, optional second grouping variable (e.g., 'Sex')
+    - plot_type: str, one of 'box', 'violin', 'bar', or 'hist'
+    - palette: str, seaborn color palette
+    - figsize: tuple, figure size
+    - bins: int, number of bins for histograms
+    - kde: bool, whether to show KDE in histogram
+    """
 
-    for i, var in enumerate(variables, 1):
-        plt.subplot(rows, 2, i)
-        sns.lineplot(data=data, x=date, y=var, hue=hue, alpha=0.3, legend=None)
-        plt.title(var)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
+    for y in y_vars:
+        plt.figure(figsize=figsize)
 
-    plt.tight_layout()
-    plt.show()
+        if plot_type == 'box':
+            sns.boxplot(data=df, x=x, y=y, hue=hue, palette=palette)
+            plt.title(f'{y} by {x} (Boxplot)')
+        elif plot_type == 'violin':
+            sns.violinplot(data=df, x=x, y=y, hue=hue, palette=palette, inner='box')
+            plt.title(f'{y} by {x} (Violinplot)')
+        elif plot_type == 'bar':
+            sns.barplot(data=df, x=x, y=y, hue=hue, palette=palette, errorbar='ci')
+            plt.title(f'{y} by {x} (Barplot with CI)')
+        elif plot_type == 'hist':
+            sns.histplot(data=df, x=y, hue=hue or x, palette=palette, bins=bins, kde=kde, multiple='stack')
+            plt.title(f'Distribution of {y} by {hue or x} (Histogram)')
+        else:
+            raise ValueError("plot_type must be one of 'box', 'violin', 'bar', or 'hist'")
 
-# Plot trends of variables over time, grouped by group.
-def plot_grouped_trends(
-    data,
-    variables,
-    group_x='group_x',
-    group_hue='group_hue',
-    xlabel='x',
-    ylabel='y',
-    title_prefix='',
-    dropna=True
-):
-    n = len(variables)
-    rows = (n + 1) // 2
-    plt.figure(figsize=(15, 5 * rows))
+        plt.tight_layout()
+        plt.show()
 
-    for i, var in enumerate(variables, 1):
-        plt.subplot(rows, 2, i)
-
-        summary = data.groupby([group_hue, group_x])[var].mean().reset_index()
-
-        if dropna:
-            summary = summary.dropna(subset=[group_hue, var])
-
-        if summary.empty:
-            print(f"[Skip] No data for {var}")
-            continue
-
-        sns.lineplot(data=summary, x=group_x, y=var, hue=group_hue, marker='o')
-        plt.title(f'{title_prefix}{var} Trend by {group_hue}')
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.legend(title=group_hue, bbox_to_anchor=(1.05, 1), loc='upper left')
-
-    plt.tight_layout()
-    plt.show()
-
-# Plot histograms of variables grouped by a group
-def plot_grouped_histograms(data, variables, group='group', 
-                        bins='auto', element='step', stat='density',
-                        common_norm=False, figsize=(15, 20), layout=(4, 2)):
-    n_rows, n_cols = layout
-    total_plots = len(variables)
-    
-    plt.figure(figsize=figsize)
-    for i, var in enumerate(variables, 1):
-        plt.subplot(n_rows, n_cols, i)
-        sns.histplot(data=data, x=var, hue=group,
-                     bins=bins, element=element, stat=stat,
-                     common_norm=common_norm)
-        plt.title(f'Histogram of {var} by {group}')
-        plt.xlabel(var)
-        plt.ylabel(stat.capitalize())
-    plt.tight_layout()
-    plt.show()
-
-# Plot boxplots of variables grouped by a group
-def plot_grouped_boxplots(data, variables, group='group', 
-                          figsize=(15, 20), layout=(4, 2), orient='v'):
-    n_rows, n_cols = layout
-    total_plots = len(variables)
-
-    plt.figure(figsize=figsize)
-    for i, var in enumerate(variables, 1):
-        plt.subplot(n_rows, n_cols, i)
-        sns.boxplot(data=data, x=group if orient == 'v' else var,
-                    y=var if orient == 'v' else group)
-        plt.title(f'Boxplot of {var} by {group}')
-        plt.xlabel(group if orient == 'v' else var)
-        plt.ylabel(var if orient == 'v' else group)
-    plt.tight_layout()
-    plt.show()
 
 
 # Kruskal-Wallis test for each variable across groups
