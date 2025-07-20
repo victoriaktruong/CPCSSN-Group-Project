@@ -15,7 +15,7 @@ def load_data(file_path):
 #function to code sex variable as numeric
 def encode_sex(df, column="Sex"):
     """Encode 'Sex' as numeric: Female=0, Male=1."""
-    df[column] = df[column].map({"Female": 0, "Male": 1})
+    df[column] = df[column].map({"Female": 0, "Male": 1, "MALE": 1})
     print("Encoded Sex: Female=0, Male=1")
     return df
 
