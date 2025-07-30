@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
+# only this function uses in main file
+# encode variables to factor and orders
 # Map one variable to categories and encode as ordered categorical or numeric.
 def map_encode(
     data,
@@ -27,13 +29,7 @@ def map_encode(
 
     return data
 
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-# Plot by Group
-import seaborn as sns
-import matplotlib.pyplot as plt
-
+# Several kinds of Plots supporting for grouped data
 def plot_by_group(
     df, 
     y_vars, 
@@ -45,20 +41,6 @@ def plot_by_group(
     bins=20,
     kde=False
 ):
-    """
-    Flexible grouped plotting function with support for histogram.
-
-    Parameters:
-    - df: pandas DataFrame
-    - y_vars: list of str, variables to plot on y-axis
-    - x: str, grouping variable (default: 'BD_Code')
-    - hue: str or None, optional second grouping variable (e.g., 'Sex')
-    - plot_type: str, one of 'box', 'violin', 'bar', or 'hist'
-    - palette: str, seaborn color palette
-    - figsize: tuple, figure size
-    - bins: int, number of bins for histograms
-    - kde: bool, whether to show KDE in histogram
-    """
 
     for y in y_vars:
         plt.figure(figsize=figsize)
